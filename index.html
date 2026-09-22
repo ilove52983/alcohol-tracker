@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>酒精代謝追蹤計算機 · Alcohol Tracker</title>
+  <meta name="description" content="即時動態追蹤體內酒精代謝 (BAC)、醒酒倒數、補水目標與宿醉指數預測 PWA Web App">
+  <meta name="theme-color" content="#0f172a">
+  
+  <!-- Apple Web App & PWA Settings -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="酒精代謝">
+  <link rel="apple-touch-icon" href="https://api.iconify.design/heroicons:beaker.svg?color=%2310b981">
+  
+  <!-- Inline Manifest for Web App Installation -->
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuWSkumAkuS7oOionei/veiouOeuleeokCIsCiAgInNob3J0X25hbWUiOiAiAlcoholTrackerIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwZjE3MmEiLAogICJ0aGVtZV9jb2xvciIjogIiMwZjE3MmEiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2FwaS5pY29uaWZ5LmRlc2lnbi9oZXJvaWNvbnM6YmVha2VyLnN2Zz9jb2xvcj0lMjMxMGI5ODEiLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXQp9">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              850: '#111827',
+              900: '#0f172a',
+              950: '#090d16',
+            }
+          },
+          animation: {
+            'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 4s ease-in-out infinite',
+          },
+          keyframes: {
+            pulseGlow: {
+              '0%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 15px rgba(16, 185, 129, 0.4))' },
+              '50%': { opacity: '0.7', filter: 'drop-shadow(0 0 5px rgba(16, 185, 129, 0.1))' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-6px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f3f4f6;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    .glass-card {
+      background: rgba(30, 41, 59, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .glass-modal {
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.5);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.8);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen text-slate-100 flex flex-col justify-between pb-12 antialiased selection:bg-emerald-500 selection:text-white">
+
+  <!-- Disclaimer Notice Bar -->
+  <div class="bg-gradient-to-r from-amber-600/90 via-orange-600/90 to-red-600/90 text-white text-xs py-2 px-4 text-center font-medium shadow-md sticky top-0 z-50 backdrop-blur-md flex items-center justify-center gap-2">
+    <i class="fa-solid font-bold fa-triangle-exclamation animate-bounce"></i>
+    <span>娛樂用途，僅供參考 | <strong>喝酒不開車，開車不喝酒</strong> | 安全歸家最重要！</span>
+  </div>
+
+  <!-- Header Section -->
+  <header class="max-w-4xl mx-auto w-full px-4 pt-4 pb-2 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white text-lg">
+        <i class="fa-solid fa-wine-glass"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+          酒精代謝追蹤
+        </h1>
+        <p class="text-xs text-slate-400">BAC Live Metabolism Tracker</p>
+      </div>
+    </div>
+
+    <!-- Right Header Action Buttons -->
+    <div class="flex items-center space-x-2">
+      <button id="pwaInstallBtn" onclick="openPwaModal()" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-emerald-400 border border-emerald-500/30 transition-all shadow-sm">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <span>安裝至桌面</span>
+      </button>
+      <button onclick="openProfileModal()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 transition-all">
+        <i class="fa-solid fa-user-gear text-sm"></i>
+      </button>
+      <button onclick="openResetModal()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-red-950/40 hover:text-red-400 text-slate-400 border border-slate-700/60 hover:border-red-800/50 transition-all">
+        <i class="fa-solid fa-rotate-left text-sm"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto w-full px-4 space-y-5 my-2 flex-grow">
+
+    <!-- Profile Quick Info Badge -->
+    <div id="userBadgeCard" class="glass-card rounded-2xl p-3 px-4 flex items-center justify-between text-xs text-slate-300">
+      <div class="flex items-center space-x-3">
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-800 text-slate-200 border border-slate-700 font-medium">
+          <i class="fa-solid fa-user text-emerald-400"></i>
+          <span id="badgeProfileText">70kg · 30歲 · 男</span>
+        </span>
+        <span id="flushTag" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          🟢 一般體質
+        </span>
+      </div>
+      <div class="text-slate-400 flex items-center gap-1">
+        <span>代謝率:</span>
+        <span id="badgeRateText" class="font-mono text-slate-200">0.0150%/hr</span>
+      </div>
+    </div>
+
+    <!-- HERO CARD: Dynamic BAC & Timer Dashboard -->
+    <div class="glass-card rounded-3xl p-6 relative overflow-hidden border border-emerald-500/20 shadow-2xl">
+      <div class="absolute -right-12 -top-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -left-12 -bottom-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+        <!-- Left: BAC Gauge -->
+        <div class="flex flex-col items-center justify-center text-center p-2">
+          <span class="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-1">當前血液酒精濃度 (BAC)</span>
+          <div class="flex items-baseline space-x-1 my-2">
+            <span id="bacValue" class="text-5xl sm:text-6xl font-black font-mono tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
+              0.00000
+            </span>
+            <span class="text-xl font-bold text-slate-400">%</span>
+          </div>
+
+          <!-- Dynamic BAC Status Pill -->
+          <div id="bacStatusBadge" class="mt-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span id="bacStatusText">🟢 體內酒精已完全代謝完畢</span>
+          </div>
+        </div>
+
+        <!-- Right: Countdown Timer & Sober Time -->
+        <div class="space-y-4 bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+          <div>
+            <div class="text-xs text-slate-400 flex items-center justify-between mb-1">
+              <span><i class="fa-solid fa-hourglass-half text-cyan-400 mr-1.5"></i>預估完全清醒倒數</span>
+              <span id="soberTimeText" class="font-mono text-slate-300">--:--:--</span>
+            </div>
+            <div id="countdownTimer" class="text-3xl font-extrabold font-mono tracking-wider text-slate-100">
+              00 : 00 : 00
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+            <span class="text-slate-400"><i class="fa-regular fa-clock text-emerald-400 mr-1.5"></i>預計退酒完全清醒時間</span>
+            <span id="soberEtaTime" class="font-semibold text-emerald-400 font-mono">已清醒</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety Alert Box -->
+      <div id="safetyAlertBox" class="mt-5 p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-300 flex items-start space-x-3">
+        <i class="fa-solid fa-shield-halved text-emerald-400 text-lg mt-0.5"></i>
+        <div class="space-y-0.5">
+          <div id="safetyTitle" class="font-bold text-emerald-200">生理安全狀態良好</div>
+          <div id="safetyDesc" class="text-slate-300 leading-relaxed">體內尚無酒精殘留或已代謝完畢，維持適量飲酒原則。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hydration & Hangover Dual Row -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      
+      <!-- Water Hydration Card -->
+      <div class="glass-card rounded-3xl p-5 flex flex-col justify-between space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+              <i class="fa-solid fa-droplet text-sm"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-200">醒酒補水進度</h3>
+              <p class="text-xs text-slate-400">降低宿醉不適關鍵</p>
+            </div>
+          </div>
+          <span id="waterPercent" class="text-lg font-bold font-mono text-cyan-400">0%</span>
+        </div>
+
+        <!-- Progress Bar -->
+        <div>
+          <div class="flex justify-between text-xs mb-1.5">
+            <span id="waterConsumedText" class="text-slate-300 font-mono">0 ml</span>
+            <span id="waterTargetText" class="text-slate-400 font-mono">目標 0 ml</span>
+          </div>
+          <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700/60">
+            <div id="waterProgressBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-500 w-0"></div>
+          </div>
+        </div>
+
+        <!-- Quick Water Intake Buttons -->
+        <div class="grid grid-cols-3 gap-2 pt-1">
+          <button onclick="addWater(250)" class="py-2 rounded-xl bg-slate-800 hover:bg-cyan-950/50 hover:text-cyan-300 text-xs font-semibold text-slate-300 border border-slate-700/60 hover:border-cyan-500/40 transition-all flex items-center justify-center gap-1">
+            <i class="fa-solid fa-plus text-[10px]"></i> 250ml
+          </button>
+          <button onclick="addWater(500)" class="py-2 rounded-xl bg-slate-800 hover:bg-cyan-950/50 hover:text-cyan-300 text-xs font-semibold text-slate-300 border border-slate-700/60 hover:border-cyan-500/40 transition-all flex items-center justify-center gap-1">
+            <i class="fa-solid fa-plus text-[10px]"></i> 500ml
+          </button>
+          <button onclick="openCustomWaterModal()" class="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700/60 transition-all">
+            自訂水亮
+          </button>
+        </div>
+      </div>
+
+      <!-- Hangover Risk Predictor Card -->
+      <div class="glass-card rounded-3xl p-5 flex flex-col justify-between space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 border border-purple-500/30">
+              <i class="fa-solid fa-face-flushed text-sm"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-200">隔天宿醉指數預測</h3>
+              <p class="text-xs text-slate-400">Hangover Risk Prediction</p>
+            </div>
+          </div>
+          <span id="hangoverScore" class="text-lg font-black font-mono text-emerald-400">0%</span>
+        </div>
+
+        <div>
+          <div id="hangoverLevelBadge" class="inline-block px-3 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+            🟢 極低 (無感)
+          </div>
+          <p id="hangoverAdvice" class="text-xs text-slate-300 leading-relaxed bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+            酒精攝取量少且水分補充充分，隔天狀態預計良好。
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PRESET DRINKS GRID -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+          <i class="fa-solid fa-martini-glass-citrus text-amber-400"></i>
+          快捷酒類與調酒選擇
+        </h2>
+        <button onclick="openCustomDrinkModal()" class="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-500/30 transition-all">
+          <i class="fa-solid fa-plus"></i> 自訂酒款
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3" id="presetDrinksGrid">
+        <!-- Javascript populated preset cards -->
+      </div>
+    </div>
+
+    <!-- DRINK HISTORY LOG -->
+    <div class="glass-card rounded-3xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-slate-200 flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-cyan-400"></i>
+          本次喝酒紀錄
+        </h2>
+        <div class="text-xs text-slate-400 font-mono">
+          總純酒精: <span id="totalAlcoholG" class="text-emerald-400 font-bold">0.0</span> g
+        </div>
+      </div>
+
+      <div id="historyList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+        <!-- History Items Inserted Here -->
+        <div class="text-center py-8 text-xs text-slate-500">
+          <i class="fa-solid fa-wine-bottle text-2xl mb-2 opacity-40"></i>
+          <p>尚未新增任何喝酒紀錄</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- DANGER LEVELS TABLE BUTTON -->
+    <div class="text-center pt-2">
+      <button onclick="openDangerTableModal()" class="text-xs text-slate-400 hover:text-slate-200 underline decoration-slate-600 underline-offset-4 transition-all">
+        <i class="fa-solid fa-book-medical mr-1"></i> 查看 BAC 生理危險臨界點分級標準對照表
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-slate-500 py-4 max-w-4xl mx-auto px-4">
+    <p>© 酒精代謝追蹤計算機 · 娛樂用途僅供參考 · 嚴禁酒後駕車</p>
+  </footer>
+
+  <!-- MODAL 1: USER PROFILE SETUP MODAL -->
+  <div id="profileModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+    <div class="glass-modal rounded-3xl p-6 w-full max-w-md space-y-5 shadow-2xl relative border border-slate-700">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+        <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-user-gear text-emerald-400"></i> 個人身體參數設定
+        </h3>
+        <button onclick="closeProfileModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="profileForm" onsubmit="saveProfile(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">性別 (Gender)</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="cursor-pointer">
+              <input type="radio" name="gender" value="M" class="peer hidden" checked>
+              <div class="py-2.5 rounded-xl bg-slate-800 text-center text-xs font-semibold border border-slate-700 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-500 transition-all">
+                男性 (M)
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="gender" value="F" class="peer hidden">
+              <div class="py-2.5 rounded-xl bg-slate-800 text-center text-xs font-semibold border border-slate-700 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-500 transition-all">
+                女性 (F)
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">年齡 (歲)</label>
+            <input type="number" id="inputAge" min="18" max="100" value="30" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">身高 (cm)</label>
+            <input type="number" id="inputHeight" min="100" max="230" value="172" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">體重 (kg)</label>
+            <input type="number" id="inputWeight" min="30" max="200" value="70" required class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+        </div>
+
+        <!-- Asian Flush Toggle -->
+        <div class="p-3.5 bg-slate-800/80 rounded-2xl border border-slate-700/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-200">喝酒容易臉紅嗎？ (ALDH2 缺乏)</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="inputFlush" class="sr-only peer">
+              <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+            </label>
+          </div>
+          <p class="text-[11px] text-slate-400">易臉紅者解毒較慢，系統會提高補水建議目標 (+25%) 與宿醉風險權重。</p>
+        </div>
+
+        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all">
+          儲存並開始計算
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CUSTOM DRINK MODAL -->
+  <div id="customDrinkModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+    <div class="glass-modal rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl relative border border-slate-700">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-glass-water-droplet text-amber-400"></i> 新增自訂酒款
+        </h3>
+        <button onclick="closeCustomDrinkModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">酒款名稱 (選填)</label>
+          <input type="text" id="customName" placeholder="例如: 特調威士忌" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">容量 (ml)</label>
+            <input type="number" id="customMl" placeholder="300" min="1" max="3000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">酒精濃度 ABV (%)</label>
+            <input type="number" id="customAbv" placeholder="12.5" step="0.1" min="0.1" max="100" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+        </div>
+        <button onclick="submitCustomDrink()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all mt-2">
+          確認新增喝酒紀錄
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CUSTOM WATER MODAL -->
+  <div id="customWaterModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+    <div class="glass-modal rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl relative border border-slate-700">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-droplet text-cyan-400"></i> 自訂喝水毫升數
+        </h3>
+        <button onclick="closeCustomWaterModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">補充水份容量 (ml)</label>
+          <input type="number" id="customWaterInput" placeholder="350" min="1" max="2000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 font-mono">
+        </div>
+        <button onclick="submitCustomWater()" class="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm transition-all">
+          確認補充
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: RESET OPTIONS MODAL -->
+  <div id="resetModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+    <div class="glass-modal rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl relative border border-slate-700 text-center">
+      <div class="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-arrow-rotate-left"></i>
+      </div>
+      <h3 class="text-base font-bold text-slate-100">歸零與重置選項</h3>
+      
+      <div class="space-y-2 text-left">
+        <button onclick="executeReset(false)" class="w-full p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-200 flex flex-col space-y-0.5 transition-all">
+          <span class="font-bold text-emerald-400">僅歸零當前 BAC 與補水</span>
+          <span class="text-slate-400 text-[11px]">保留歷史紀錄，重置目前酒精濃度與水量為 0</span>
+        </button>
+
+        <button onclick="executeReset(true)" class="w-full p-3 rounded-2xl bg-red-950/40 hover:bg-red-900/50 border border-red-800/50 text-xs text-slate-200 flex flex-col space-y-0.5 transition-all">
+          <span class="font-bold text-red-400">完全重置 (清空紀錄)</span>
+          <span class="text-slate-400 text-[11px]">清空所有喝酒紀錄、BAC、補水，重新開啟</span>
+        </button>
+      </div>
+
+      <button onclick="closeResetModal()" class="w-full py-2 text-xs text-slate-400 hover:text-white">
+        取消
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 5: DANGER LEVELS REFERENCE MODAL -->
+  <div id="dangerTableModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+    <div class="glass-modal rounded-3xl p-6 w-full max-w-lg space-y-4 shadow-2xl relative border border-slate-700">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-hospital text-red-400"></i> 生理危險臨界點分級標準對照表
+        </h3>
+        <button onclick="closeDangerTableModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div class="p-3 rounded-2xl bg-red-950/50 border border-red-600/40 space-y-1">
+          <div class="flex justify-between font-bold text-red-300">
+            <span>BAC ≥ 0.40%</span>
+            <span>🚨 致命危險</span>
+          </div>
+          <p class="text-slate-300">急性酒精中毒！呼吸麻痺、昏迷，強烈建議立即撥打 119 急救。</p>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-orange-950/40 border border-orange-600/40 space-y-1">
+          <div class="flex justify-between font-bold text-orange-300">
+            <span>BAC ≥ 0.30%</span>
+            <span>🚨 泥醉昏迷</span>
+          </div>
+          <p class="text-slate-300">意識喪失、無法自主，隨時有嘔吐物窒息危險，請密切防範。</p>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-amber-950/40 border border-amber-600/40 space-y-1">
+          <div class="flex justify-between font-bold text-amber-300">
+            <span>BAC ≥ 0.15%</span>
+            <span>⚠️ 中重度醉酒</span>
+          </div>
+          <p class="text-slate-300">言語不清、運動機能與平衡嚴重受損，應立刻停止飲酒並大量補水。</p>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-yellow-950/40 border border-yellow-600/40 space-y-1">
+          <div class="flex justify-between font-bold text-yellow-300">
+            <span>BAC ≥ 0.03%</span>
+            <span>🟡 酒駕違規臨界點</span>
+          </div>
+          <p class="text-slate-300">注意力與反應下降，已達台灣法規酒駕違規標準，嚴禁駕駛車輛！</p>
+        </div>
+
+        <div class="p-3 rounded-2xl bg-emerald-950/30 border border-emerald-600/30 space-y-1">
+          <div class="flex justify-between font-bold text-emerald-300">
+            <span>BAC < 0.03%</span>
+            <span>🟢 輕微 / 無微</span>
+          </div>
+          <p class="text-slate-300">體內微量殘留或已完全代謝完畢。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: PWA / DESKTOP SHORTCUT INSTALLATION GUIDE MODAL -->
+  <div id="pwaModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+    <div class="glass-modal rounded-3xl p-6 w-full max-w-md space-y-5 shadow-2xl relative border border-slate-700">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-mobile-screen-button text-emerald-400"></i> 新增至手機桌面 (捷徑)
+        </h3>
+        <button onclick="closePwaModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs text-slate-300">
+        <!-- iOS Safari -->
+        <div class="p-3.5 bg-slate-800/80 rounded-2xl border border-slate-700 space-y-2">
+          <div class="font-bold text-emerald-400 flex items-center gap-2">
+            <i class="fa-brands fa-apple text-sm"></i> iPhone (Safari 瀏覽器)
+          </div>
+          <ol class="list-decimal list-inside space-y-1.5 text-slate-300 leading-relaxed">
+            <li>點擊 Safari 下方工具列中間的 <strong class="text-white">「分享按鈕」`[↑]`</strong>。</li>
+            <li>在選項選單中選取 <strong class="text-white">「加入主畫面」</strong>。</li>
+            <li>點擊右上角 <strong class="text-white">「新增」</strong> 即可像 App 一樣從桌面開啟！</li>
+          </ol>
+        </div>
+
+        <!-- Android Chrome -->
+        <div class="p-3.5 bg-slate-800/80 rounded-2xl border border-slate-700 space-y-2">
+          <div class="font-bold text-cyan-400 flex items-center gap-2">
+            <i class="fa-brands fa-android text-sm"></i> Android (Chrome 瀏覽器)
+          </div>
+          <ol class="list-decimal list-inside space-y-1.5 text-slate-300 leading-relaxed">
+            <li>點擊 Chrome 右上角的 <strong class="text-white">「三點選單 `⋮`」</strong>。</li>
+            <li>點擊 <strong class="text-white">「新增至主螢幕」</strong> 或 <strong class="text-white">「安裝應用程式」</strong>。</li>
+            <li>確認後即可成功將 App 圖示加至主畫面！</li>
+          </ol>
+        </div>
+      </div>
+
+      <button onclick="closePwaModal()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-all">
+        了解，關閉視窗
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // PRESET DRINK DATABASE
+    // ==========================================
+    const PRESET_DRINKS = [
+      { id: '1', name: '罐裝啤酒', icon: '🍺', ml: 330, abv: 5.0 },
+      { id: '2', name: '生啤酒/大杯', icon: '🍷', ml: 500, abv: 5.0 },
+      { id: '3', name: '紅/白葡萄酒', icon: '🍷', ml: 150, abv: 12.5 },
+      { id: '4', name: '烈酒 Single Shot', icon: '🥃', ml: 45, abv: 40.0 },
+      { id: '5', name: '長島冰茶', icon: '🍹', ml: 220, abv: 25.0 },
+      { id: '6', name: '莫希托 Mojito', icon: '🍹', ml: 200, abv: 12.0 },
+      { id: '7', name: '自由古巴 RumCoke', icon: '🍹', ml: 200, abv: 15.0 },
+      { id: '8', name: '琴 Tonic', icon: '🍹', ml: 200, abv: 14.0 },
+      { id: '9', name: '瑪格麗特 Margarita', icon: '🍹', ml: 120, abv: 33.0 },
+      { id: '10', name: '日本清酒 Sake', icon: '🍶', ml: 180, abv: 15.0 }
+    ];
+
+    // ==========================================
+    // STATE STORAGE
+    // ==========================================
+    let state = {
+      profile: {
+        gender: 'M',
+        age: 30,
+        height: 172,
+        weight: 70,
+        isFlush: false
+      },
+      currentBac: 0.0,
+      lastUpdatedTime: new Date().getTime(),
+      targetWaterMl: 0.0,
+      consumedWaterMl: 0.0,
+      drinkHistory: []
+    };
+
+    // ==========================================
+    // INITIALIZATION & LOCALSTORAGE
+    // ==========================================
+    window.onload = function() {
+      loadStateFromLocalStorage();
+      renderPresetDrinksGrid();
+      
+      // If no saved profile, open setup modal
+      if (!localStorage.getItem('alcohol_tracker_state')) {
+        openProfileModal();
+      }
+
+      // Start tick animation loop (1 second interval)
+      setInterval(tick, 1000);
+      tick(); // Immediate first tick
+    };
+
+    function saveStateToLocalStorage() {
+      localStorage.setItem('alcohol_tracker_state', JSON.stringify(state));
+    }
+
+    function loadStateFromLocalStorage() {
+      const saved = localStorage.getItem('alcohol_tracker_state');
+      if (saved) {
+        try {
+          state = JSON.parse(saved);
+        } catch(e) {
+          console.error("Failed to parse saved state", e);
+        }
+      }
+    }
+
+    // ==========================================
+    // WIDMARK & METABOLISM CALCULATIONS
+    // ==========================================
+    function getWidmarkFactor(gender, age) {
+      const baseR = gender === 'M' ? 0.68 : 0.55;
+      if (age > 50) {
+        const penalty = ((age - 50) / 10) * 0.02;
+        return Math.max(0.45, baseR - penalty);
+      }
+      return baseR;
+    }
+
+    function getHourlyMetabolismRate(age) {
+      const baseRate = 0.015; // 0.015% BAC per hour
+      if (age > 50) {
+        const penalty = ((age - 50) / 10) * 0.05;
+        return Math.max(0.010, baseRate * (1 - penalty));
+      }
+      return baseRate;
+    }
+
+    // Dynamic state update on every tick
+    function tick() {
+      const now = new Date().getTime();
+      const elapsedSeconds = (now - state.lastUpdatedTime) / 1000.0;
+      
+      if (elapsedSeconds > 0) {
+        const hourlyRate = getHourlyMetabolismRate(state.profile.age);
+        const perSecRate = hourlyRate / 3600.0;
+        const metabolizedBac = elapsedSeconds * perSecRate;
+        
+        state.currentBac = Math.max(0.0, state.currentBac - metabolizedBac);
+        state.lastUpdatedTime = now;
+        saveStateToLocalStorage();
+      }
+
+      updateUI();
+    }
+
+    // ==========================================
+    // DRINK & WATER ACTIONS
+    // ==========================================
+    function addDrink(ml, abv, name = "自訂酒款") {
+      tick(); // Ensure BAC up-to-date before adding
+
+      // Pure Alcohol (g) = ml * (abv / 100) * 0.8
+      const pureAlcoholG = ml * (abv / 100.0) * 0.8;
+      const r = getWidmarkFactor(state.profile.gender, state.profile.age);
+      
+      // Added BAC = (pureAlcoholG / (weight * r)) / 10
+      const addedBac = (pureAlcoholG / (state.profile.weight * r)) / 10.0;
+
+      state.currentBac += addedBac;
+
+      // Hydration Target: 15ml per g if Asian Flush, 12ml otherwise
+      const waterFactor = state.profile.isFlush ? 15.0 : 12.0;
+      const addedWaterTarget = pureAlcoholG * waterFactor;
+      state.targetWaterMl += addedWaterTarget;
+
+      const record = {
+        id: Date.now(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        name: name,
+        ml: ml,
+        abv: abv,
+        pureAlcoholG: parseFloat(pureAlcoholG.toFixed(1)),
+        addedBac: parseFloat(addedBac.toFixed(4))
+      };
+
+      state.drinkHistory.unshift(record);
+      saveStateToLocalStorage();
+      updateUI();
+    }
+
+    function addWater(ml) {
+      state.consumedWaterMl += ml;
+      saveStateToLocalStorage();
+      updateUI();
+    }
+
+    function deleteHistoryItem(id) {
+      state.drinkHistory = state.drinkHistory.filter(item => item.id !== id);
+      saveStateToLocalStorage();
+      updateUI();
+    }
+
+    // ==========================================
+    // UI UPDATER
+    // ==========================================
+    function updateUI() {
+      // 1. Profile Badge Text
+      document.getElementById('badgeProfileText').innerText = `${state.profile.weight}kg · ${state.profile.age}歲 · ${state.profile.gender === 'M' ? '男' : '女'}`;
+      const flushTag = document.getElementById('flushTag');
+      if (state.profile.isFlush) {
+        flushTag.className = "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20";
+        flushTag.innerText = "🔴 ALDH2缺乏 (易臉紅)";
+      } else {
+        flushTag.className = "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+        flushTag.innerText = "🟢 一般體質";
+      }
+
+      const hourlyRate = getHourlyMetabolismRate(state.profile.age);
+      document.getElementById('badgeRateText').innerText = `${hourlyRate.toFixed(4)}%/hr`;
+
+      // 2. BAC & Gauges
+      const bacValEl = document.getElementById('bacValue');
+      bacValEl.innerText = state.currentBac.toFixed(5);
+
+      const bacBadge = document.getElementById('bacStatusBadge');
+      const bacText = document.getElementById('bacStatusText');
+      
+      if (state.currentBac <= 0) {
+        bacBadge.className = "mt-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2";
+        bacText.innerText = "🟢 體內酒精已完全代謝完畢";
+      } else if (state.currentBac >= 0.03) {
+        bacBadge.className = "mt-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-2 animate-pulse";
+        bacText.innerText = "🟡 已達酒駕違規標準 (BAC ≥ 0.03%)";
+      } else {
+        bacBadge.className = "mt-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center gap-2";
+        bacText.innerText = "🔵 代謝進行中 (低於酒駕標準)";
+      }
+
+      // 3. Countdown & Sober ETA
+      const perSecRate = hourlyRate / 3600.0;
+      const totalSecRemaining = Math.ceil(state.currentBac / perSecRate);
+
+      if (totalSecRemaining <= 0) {
+        document.getElementById('countdownTimer').innerText = "00 : 00 : 00";
+        document.getElementById('soberTimeText').innerText = "00:00:00";
+        document.getElementById('soberEtaTime').innerText = "已清醒";
+      } else {
+        const hrs = Math.floor(totalSecRemaining / 3600);
+        const mins = Math.floor((totalSecRemaining % 3600) / 60);
+        const secs = totalSecRemaining % 60;
+        
+        const pad = (n) => String(n).padStart(2, '0');
+        const timerStr = `${pad(hrs)} : ${pad(mins)} : ${pad(secs)}`;
+        document.getElementById('countdownTimer').innerText = timerStr;
+        document.getElementById('soberTimeText').innerText = `${hrs}小時 ${mins}分`;
+
+        const eta = new Date(new Date().getTime() + totalSecRemaining * 1000);
+        document.getElementById('soberEtaTime').innerText = eta.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+
+      // 4. Safety Level Status Alert
+      updateSafetyAlert(state.currentBac);
+
+      // 5. Water Hydration Progress
+      document.getElementById('waterConsumedText').innerText = `${Math.round(state.consumedWaterMl)} ml`;
+      document.getElementById('waterTargetText').innerText = `目標 ${Math.round(state.targetWaterMl)} ml`;
+      
+      const waterPct = state.targetWaterMl > 0 
+        ? Math.min(100, (state.consumedWaterMl / state.targetWaterMl) * 100) 
+        : 100;
+      
+      document.getElementById('waterPercent').innerText = `${waterPct.toFixed(0)}%`;
+      document.getElementById('waterProgressBar').style.width = `${waterPct}%`;
+
+      // 6. Hangover Risk Prediction
+      updateHangoverRisk();
+
+      // 7. Drink History List
+      renderHistoryList();
+    }
+
+    function updateSafetyAlert(bac) {
+      const box = document.getElementById('safetyAlertBox');
+      const title = document.getElementById('safetyTitle');
+      const desc = document.getElementById('safetyDesc');
+
+      if (bac >= 0.40) {
+        box.className = "mt-5 p-3.5 rounded-2xl bg-red-950/80 border border-red-500 text-xs text-red-200 flex items-start space-x-3 animate-pulse";
+        title.innerText = "🚨🚨🚨【致命危險：急性酒精中毒】";
+        desc.innerText = "BAC ≥ 0.40%！可能引發心跳驟停或重度昏迷，請立刻撥打 119 送醫急救！";
+      } else if (bac >= 0.30) {
+        box.className = "mt-5 p-3.5 rounded-2xl bg-red-900/50 border border-red-500/60 text-xs text-red-200 flex items-start space-x-3";
+        title.innerText = "🚨【嚴重危險：泥醉昏迷區】";
+        desc.innerText = "BAC ≥ 0.30%，隨時有嘔吐物窒息危險！請停止飲酒並密切注意呼吸狀況。";
+      } else if (bac >= 0.15) {
+        box.className = "mt-5 p-3.5 rounded-2xl bg-amber-950/60 border border-amber-500/50 text-xs text-amber-200 flex items-start space-x-3";
+        title.innerText = "⚠️【中重度醉酒：運動機能受損】";
+        desc.innerText = "言語不清、步態不穩。請立刻停止喝酒，並補充大量水分。";
+      } else if (bac >= 0.03) {
+        box.className = "mt-5 p-3.5 rounded-2xl bg-yellow-950/50 border border-yellow-500/40 text-xs text-yellow-200 flex items-start space-x-3";
+        title.innerText = "🟡【輕度醉酒：達酒駕違規標準】";
+        desc.innerText = "注意力感知下降 (BAC ≥ 0.03%)。嚴禁開車、騎車或操作機器！";
+      } else if (bac > 0) {
+        box.className = "mt-5 p-3.5 rounded-2xl bg-teal-950/40 border border-teal-500/30 text-xs text-teal-200 flex items-start space-x-3";
+        title.innerText = "🔵【酒精代謝中】";
+        desc.innerText = "體內仍有微量酒精殘留，建議暫勿駕駛車輛。";
+      } else {
+        box.className = "mt-5 p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-300 flex items-start space-x-3";
+        title.innerText = "🟢 生理安全狀態良好";
+        desc.innerText = "體內尚無酒精殘留或已代謝完畢，維持適量飲酒原則。";
+      }
+    }
+
+    function updateHangoverRisk() {
+      const totalAlcoholG = state.drinkHistory.reduce((acc, curr) => acc + curr.pureAlcoholG, 0);
+      
+      if (totalAlcoholG <= 0) {
+        document.getElementById('hangoverScore').innerText = "0%";
+        document.getElementById('hangoverLevelBadge').className = "inline-block px-3 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2";
+        document.getElementById('hangoverLevelBadge').innerText = "🟢 極低 (無感)";
+        document.getElementById('hangoverAdvice').innerText = "酒精攝取量少且水分補充充分，隔天狀態預計良好。";
+        return;
+      }
+
+      let baseRisk = (totalAlcoholG / 10.0) * 12.0;
+      if (state.profile.isFlush) {
+        baseRisk *= 1.25;
+      }
+
+      const hydrationRatio = state.targetWaterMl > 0 ? Math.min(1.0, state.consumedWaterMl / state.targetWaterMl) : 0;
+      let finalRisk = baseRisk * (1.0 - (hydrationRatio * 0.3));
+      finalRisk = Math.min(100.0, Math.max(0.0, finalRisk));
+
+      const scoreEl = document.getElementById('hangoverScore');
+      const badgeEl = document.getElementById('hangoverLevelBadge');
+      const adviceEl = document.getElementById('hangoverAdvice');
+
+      scoreEl.innerText = `${finalRisk.toFixed(1)}%`;
+
+      if (finalRisk >= 75) {
+        scoreEl.className = "text-lg font-black font-mono text-red-400";
+        badgeEl.className = "inline-block px-3 py-1 rounded-xl text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 mb-2 animate-pulse";
+        badgeEl.innerText = "🚨 極高 (重度宿醉)";
+        adviceEl.innerText = "預測隔天將有劇烈頭痛與噁心。睡前請務必補充大量電解質水與 B 群！";
+      } else if (finalRisk >= 45) {
+        scoreEl.className = "text-lg font-black font-mono text-amber-400";
+        badgeEl.className = "inline-block px-3 py-1 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 mb-2";
+        badgeEl.innerText = "⚠️ 中度 (輕微宿醉)";
+        adviceEl.innerText = "預測隔天會有頭重腳輕感。建議睡前再多補充 300~500ml 溫水。";
+      } else if (finalRisk >= 20) {
+        scoreEl.className = "text-lg font-black font-mono text-yellow-400";
+        badgeEl.className = "inline-block px-3 py-1 rounded-xl text-xs font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 mb-2";
+        badgeEl.innerText = "🟡 低度 (輕微影響)";
+        adviceEl.innerText = "狀況尚可，醒來後持續補充水分即可輕鬆修復。";
+      } else {
+        scoreEl.className = "text-lg font-black font-mono text-emerald-400";
+        badgeEl.className = "inline-block px-3 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2";
+        badgeEl.innerText = "🟢 極低 (無感)";
+        adviceEl.innerText = "酒精攝取量少且水分補充充分，隔天狀態預計良好。";
+      }
+    }
+
+    // ==========================================
+    // PRESET DRINKS GRID RENDER
+    // ==========================================
+    function renderPresetDrinksGrid() {
+      const grid = document.getElementById('presetDrinksGrid');
+      grid.innerHTML = '';
+
+      PRESET_DRINKS.forEach(drink => {
+        const btn = document.createElement('button');
+        btn.onclick = () => addDrink(drink.ml, drink.abv, drink.name);
+        btn.className = "glass-card p-3 rounded-2xl hover:bg-slate-800/90 hover:border-emerald-500/40 transition-all flex flex-col items-center text-center space-y-1 group active:scale-95";
+        
+        btn.innerHTML = `
+          <span class="text-2xl group-hover:scale-110 transition-transform">${drink.icon}</span>
+          <span class="text-xs font-bold text-slate-200">${drink.name}</span>
+          <span class="text-[10px] text-slate-400 font-mono">${drink.ml}ml · ${drink.abv}%</span>
+        `;
+        grid.appendChild(btn);
+      });
+    }
+
+    // ==========================================
+    // HISTORY LOG RENDER
+    // ==========================================
+    function renderHistoryList() {
+      const container = document.getElementById('historyList');
+      const totalGEl = document.getElementById('totalAlcoholG');
+
+      if (!state.drinkHistory || state.drinkHistory.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-6 text-xs text-slate-500">
+            <i class="fa-solid fa-wine-bottle text-2xl mb-1.5 opacity-40"></i>
+            <p>尚未新增任何喝酒紀錄</p>
+          </div>
+        `;
+        totalGEl.innerText = "0.0";
+        return;
+      }
+
+      let totalG = 0;
+      container.innerHTML = '';
+
+      state.drinkHistory.forEach(item => {
+        totalG += item.pureAlcoholG;
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-3 rounded-2xl bg-slate-800/60 border border-slate-700/50 text-xs hover:bg-slate-800 transition-all";
+        
+        div.innerHTML = `
+          <div class="space-y-0.5">
+            <div class="font-bold text-slate-200 flex items-center gap-2">
+              <span>${item.name}</span>
+              <span class="text-[10px] font-normal text-slate-400 font-mono">(${item.ml}ml · ${item.abv}%)</span>
+            </div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-3">
+              <span>時間: ${item.time}</span>
+              <span>酒精: <strong class="text-emerald-400 font-mono">${item.pureAlcoholG}g</strong></span>
+              <span>BAC +<strong class="text-cyan-400 font-mono">${item.addedBac}%</strong></span>
+            </div>
+          </div>
+          <button onclick="deleteHistoryItem(${item.id})" class="text-slate-500 hover:text-red-400 p-1.5 transition-colors">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        `;
+        container.appendChild(div);
+      });
+
+      totalGEl.innerText = totalG.toFixed(1);
+    }
+
+    // ==========================================
+    // MODAL CONTROL FUNCTIONS
+    // ==========================================
+    function openProfileModal() {
+      document.getElementById('inputAge').value = state.profile.age;
+      document.getElementById('inputHeight').value = state.profile.height;
+      document.getElementById('inputWeight').value = state.profile.weight;
+      document.getElementById('inputFlush').checked = state.profile.isFlush;
+      
+      const genderRadios = document.getElementsByName('gender');
+      genderRadios.forEach(r => {
+        if (r.value === state.profile.gender) r.checked = true;
+      });
+
+      document.getElementById('profileModal').classList.remove('hidden');
+    }
+
+    function closeProfileModal() {
+      document.getElementById('profileModal').classList.add('hidden');
+    }
+
+    function saveProfile(e) {
+      e.preventDefault();
+      const gender = document.querySelector('input[name="gender"]:checked').value;
+      const age = parseInt(document.getElementById('inputAge').value) || 30;
+      const height = parseFloat(document.getElementById('inputHeight').value) || 172;
+      const weight = parseFloat(document.getElementById('inputWeight').value) || 70;
+      const isFlush = document.getElementById('inputFlush').checked;
+
+      state.profile = { gender, age, height, weight, isFlush };
+      saveStateToLocalStorage();
+      closeProfileModal();
+      updateUI();
+    }
+
+    function openCustomDrinkModal() {
+      document.getElementById('customDrinkModal').classList.remove('hidden');
+    }
+
+    function closeCustomDrinkModal() {
+      document.getElementById('customDrinkModal').classList.add('hidden');
+    }
+
+    function submitCustomDrink() {
+      const name = document.getElementById('customName').value.trim() || "自訂酒款";
+      const ml = parseFloat(document.getElementById('customMl').value);
+      const abv = parseFloat(document.getElementById('customAbv').value);
+
+      if (!ml || !abv || ml <= 0 || abv <= 0) {
+        alert("請輸入有效的毫升數與酒精濃度！");
+        return;
+      }
+
+      addDrink(ml, abv, name);
+      document.getElementById('customName').value = '';
+      document.getElementById('customMl').value = '';
+      document.getElementById('customAbv').value = '';
+      closeCustomDrinkModal();
+    }
+
+    function openCustomWaterModal() {
+      document.getElementById('customWaterModal').classList.remove('hidden');
+    }
+
+    function closeCustomWaterModal() {
+      document.getElementById('customWaterModal').classList.add('hidden');
+    }
+
+    function submitCustomWater() {
+      const ml = parseFloat(document.getElementById('customWaterInput').value);
+      if (ml && ml > 0) {
+        addWater(ml);
+        document.getElementById('customWaterInput').value = '';
+        closeCustomWaterModal();
+      }
+    }
+
+    function openResetModal() {
+      document.getElementById('resetModal').classList.remove('hidden');
+    }
+
+    function closeResetModal() {
+      document.getElementById('resetModal').classList.add('hidden');
+    }
+
+    function executeReset(fullReset = false) {
+      if (fullReset) {
+        state.currentBac = 0.0;
+        state.targetWaterMl = 0.0;
+        state.consumedWaterMl = 0.0;
+        state.drinkHistory = [];
+        state.lastUpdatedTime = new Date().getTime();
+      } else {
+        state.currentBac = 0.0;
+        state.targetWaterMl = 0.0;
+        state.consumedWaterMl = 0.0;
+        state.lastUpdatedTime = new Date().getTime();
+      }
+      saveStateToLocalStorage();
+      closeResetModal();
+      updateUI();
+    }
+
+    function openDangerTableModal() {
+      document.getElementById('dangerTableModal').classList.remove('hidden');
+    }
+
+    function closeDangerTableModal() {
+      document.getElementById('dangerTableModal').classList.add('hidden');
+    }
+
+    function openPwaModal() {
+      document.getElementById('pwaModal').classList.remove('hidden');
+    }
+
+    function closePwaModal() {
+      document.getElementById('pwaModal').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
