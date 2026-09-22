@@ -607,7 +607,6 @@ const PRESET_DRINKS = [
 window.onload = function() {
     loadState();
     renderPresets();
-    renderStageTableList();
     updateProfileUI();
     recalculateAll();
     
@@ -874,9 +873,10 @@ function closeStageDetailModal() {
 }
 
 /**
- * Render and Control 6-Stage Table Modal
+ * Render and Control 6-Stage Table Modal (即時重新渲染當前狀態)
  */
 function openStageModal() {
+    renderStageTableList(); // 開啟時同步最新狀態
     document.getElementById('stage-modal').classList.remove('hidden');
 }
 
@@ -909,12 +909,15 @@ function renderStageTableList() {
     }).join('');
 }
 
+/**
+ * 宿醉指數評估邏輯
+ */
 function evaluateHangover(totalGrams, waterIntake, targetWater) {
     const scoreEl = document.getElementById('hangover-score');
     const barEl = document.getElementById('hangover-bar');
     const adviceEl = document.getElementById('hangover-advice');
 
-    if (totalGrams === 0) {
+    if (totalGrams <= 0) {
         scoreEl.innerText = '0% (極低)';
         scoreEl.className = 'font-bold text-emerald-400';
         barEl.style.width = '0%';
@@ -923,28 +926,39 @@ function evaluateHangover(totalGrams, waterIntake, targetWater) {
         return;
     }
 
-    const waterDeficitRatio = targetWater > 0 ? Math.max(0, (targetWater - waterIntake) / targetWater) : 0;
-    let rawScore = (totalGrams / 80) * 60 + (waterDeficitRatio * 40);
-    if (state.profile.asianFlush) rawScore *= 1.25;
+    let baseScore = (totalGrams / 60.0) * 100.0;
 
-    const score = Math.min(100, Math.round(rawScore));
+    if (state.profile.asianFlush) {
+        baseScore *= 1.25;
+    }
+
+    const hydrationRatio = targetWater > 0 ? Math.min(1.0, waterIntake / targetWater) : 0;
+    const discountFactor = 1.0 - (hydrationRatio * 0.30);
+
+    const score = Math.min(100, Math.max(0, Math.round(baseScore * discountFactor)));
+
     barEl.style.width = `${score}%`;
 
-    if (score < 30) {
-        scoreEl.innerText = `${score}% (輕微)`;
+    if (score < 20) {
+        scoreEl.innerText = `${score}% (極低/輕微)`;
         scoreEl.className = 'font-bold text-emerald-400';
         barEl.className = 'bg-emerald-500 h-2 rounded-full transition-all duration-500';
-        adviceEl.innerText = '宿醉風險較低，建議睡前補水 300ml 即可有效預防。';
-    } else if (score < 60) {
-        scoreEl.innerText = `${score}% (中度)`;
+        adviceEl.innerText = '酒精攝取量極少，幾乎不會產生宿醉症狀，保持正常補充水分即可。';
+    } else if (score < 45) {
+        scoreEl.innerText = `${score}% (輕微)`;
         scoreEl.className = 'font-bold text-amber-400';
-        barEl.className = 'bg-amber-500 h-2 rounded-full transition-all duration-500';
-        adviceEl.innerText = '有中度宿醉風險！請補充電解質水，並補足剩餘建議水量。';
+        barEl.className = 'bg-amber-400 h-2 rounded-full transition-all duration-500';
+        adviceEl.innerText = '有輕微宿醉風險，建議睡前補水 300ml 即可有效預防口乾與輕微頭重感。';
+    } else if (score < 70) {
+        scoreEl.innerText = `${score}% (中度)`;
+        scoreEl.className = 'font-bold text-orange-400';
+        barEl.className = 'bg-orange-500 h-2 rounded-full transition-all duration-500';
+        adviceEl.innerText = '有中度宿醉風險！請務必補充電解質水，並補足剩餘建議水量。';
     } else {
         scoreEl.innerText = `${score}% (重度警告)`;
         scoreEl.className = 'font-bold text-rose-400';
         barEl.className = 'bg-rose-500 h-2 rounded-full transition-all duration-500';
-        adviceEl.innerText = '高宿醉與脫水風險！請立即補充水分與維生素B群，並充分休息。';
+        adviceEl.innerText = '高宿醉與嚴重脫水風險！請立即補充大量水分與維生素 B 群，並充分休息。';
     }
 }
 
