@@ -379,18 +379,22 @@
                 <label class="block text-xs font-semibold text-slate-300 mb-1">生理性別</label>
                 <div class="grid grid-cols-2 gap-3">
                     <button type="button" id="gender-male-btn" onclick="setGender('male')" class="py-2.5 rounded-xl border font-medium text-center transition flex items-center justify-center gap-2 bg-amber-500/20 border-amber-500 text-amber-300">
-                        <i class="fa-solid fa-mars"></i> 男性 (r=0.68)
+                        <i class="fa-solid fa-mars"></i> 男性
                     </button>
                     <button type="button" id="gender-female-btn" onclick="setGender('female')" class="py-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-400 font-medium text-center transition flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-venus"></i> 女性 (r=0.55)
+                        <i class="fa-solid fa-venus"></i> 女性
                     </button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">身高 (cm)</label>
+                    <input type="number" id="input-height" min="100" max="230" value="170" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">體重 (kg)</label>
-                    <input type="number" id="input-weight" min="30" max="200" value="70" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+                    <input type="number" id="input-weight" min="30" max="250" value="70" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 mb-1">年齡 (歲)</label>
@@ -501,12 +505,13 @@
 /**
  * Application State
  */
-const STORAGE_KEY = 'bac_tracker_state_v4';
+const STORAGE_KEY = 'bac_tracker_state_v5';
 
 let state = {
     profile: {
         gender: 'male',
-        weight: 70, // kg
+        height: 170, // cm
+        weight: 70,  // kg
         age: 28,
         asianFlush: false
     },
@@ -739,13 +744,25 @@ function removeItemRecord(id) {
 
 function recalculateAll() {
     const now = new Date();
-    const { gender, weight, age, asianFlush } = state.profile;
+    const { gender, height, weight, age, asianFlush } = state.profile;
 
-    // 1. Widmark Factor r
+    // 1. 動態計算 BMI 與修正 Widmark 體液分佈係數 r
+    const hMeter = (height || 170) / 100;
+    const bmi = weight / (hMeter * hMeter);
+
+    // 基準 Widmark 係數
     let r = gender === 'female' ? 0.55 : 0.68;
+
+    // BMI 修正邏輯：超過 25 (體脂比例較高，脂肪不含水)，動態微調下修 r 值，最低防護值 0.45
+    if (bmi > 25) {
+        const excessBmi = bmi - 25;
+        r = Math.max(0.45, r - (excessBmi * 0.008));
+    }
+
+    // 年齡對體液比例與代謝速度的修正
     if (age > 50) {
         const agePenalty = ((age - 50) / 10) * 0.02;
-        r = Math.max(0.45, r - agePenalty);
+        r = Math.max(0.40, r - agePenalty);
     }
 
     let hourlyRate = 0.015;
@@ -765,7 +782,7 @@ function recalculateAll() {
             const intakeTime = new Date(item.timestamp);
             const hoursElapsed = Math.max(0, (now - intakeTime) / (1000 * 60 * 60));
 
-            // Correct Widmark Equation Formula: BAC% = (grams / (kg * r)) / 10
+            // Widmark 公式: BAC% = (純酒精克數 / (體重kg * r)) / 10
             const initialBAC = (item.alcoholGrams / (weight * r)) / 10.0;
             const eliminatedBAC = hoursElapsed * hourlyRate;
             const currentDrinkBAC = Math.max(0, initialBAC - eliminatedBAC);
@@ -873,10 +890,10 @@ function closeStageDetailModal() {
 }
 
 /**
- * Render and Control 6-Stage Table Modal (即時重新渲染當前狀態)
+ * Render and Control 6-Stage Table Modal
  */
 function openStageModal() {
-    renderStageTableList(); // 開啟時同步最新狀態
+    renderStageTableList();
     document.getElementById('stage-modal').classList.remove('hidden');
 }
 
@@ -1029,8 +1046,9 @@ function renderHistory() {
  * Profile Modal Logic
  */
 function openProfileModal() {
-    document.getElementById('input-weight').value = state.profile.weight;
-    document.getElementById('input-age').value = state.profile.age;
+    document.getElementById('input-height').value = state.profile.height || 170;
+    document.getElementById('input-weight').value = state.profile.weight || 70;
+    document.getElementById('input-age').value = state.profile.age || 28;
     document.getElementById('input-asian-flush').checked = state.profile.asianFlush;
     setGender(state.profile.gender);
     document.getElementById('profile-modal').classList.remove('hidden');
@@ -1055,6 +1073,7 @@ function setGender(gender) {
 }
 
 function saveProfile() {
+    state.profile.height = parseFloat(document.getElementById('input-height').value) || 170;
     state.profile.weight = parseFloat(document.getElementById('input-weight').value) || 70;
     state.profile.age = parseInt(document.getElementById('input-age').value) || 28;
     state.profile.asianFlush = document.getElementById('input-asian-flush').checked;
@@ -1068,7 +1087,7 @@ function saveProfile() {
 
 function updateProfileUI() {
     const genderText = state.profile.gender === 'male' ? '男' : '女';
-    document.getElementById('header-profile-summary').innerText = `${genderText} · ${state.profile.weight}kg · ${state.profile.age}歲`;
+    document.getElementById('header-profile-summary').innerText = `${genderText} · ${state.profile.height}cm · ${state.profile.weight}kg · ${state.profile.age}歲`;
 }
 
 /**
