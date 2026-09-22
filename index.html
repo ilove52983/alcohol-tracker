@@ -139,9 +139,11 @@
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                         即時血酒濃度 (BAC)
                     </span>
-                    <span id="driving-status-tag" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        安全可駕駛
-                    </span>
+                    <!-- Clickable Driving/Physiology Status Tag -->
+                    <button id="driving-status-tag" onclick="showCurrentStageDetail()" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:brightness-125 transition flex items-center gap-1 cursor-pointer">
+                        <span>完全清醒 (可駕車)</span>
+                        <i class="fa-solid fa-circle-info text-[10px] opacity-70"></i>
+                    </button>
                 </div>
 
                 <div class="flex items-baseline gap-2 mb-2">
@@ -150,9 +152,14 @@
                     <span id="bac-promille" class="text-xs text-slate-400 ml-auto font-mono">(0.00 ‰)</span>
                 </div>
 
-                <p id="bac-legal-note" class="text-xs text-slate-400 mb-6 leading-relaxed">
-                    台灣法定駕車標準：BAC ≥ 0.03% (約 0.15 mg/L 呼氣濃度) 即屬違規開罰。
-                </p>
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-6">
+                    <p id="bac-legal-note" class="leading-relaxed">
+                        台灣法定駕車標準：BAC ≥ 0.03% 即屬違規。
+                    </p>
+                    <button onclick="openStageModal()" class="text-amber-400 hover:text-amber-300 font-medium underline underline-offset-2 shrink-0 ml-2">
+                        📖 6大生理分級
+                    </button>
+                </div>
 
                 <div class="border-t border-slate-700/60 pt-4 space-y-3">
                     <div class="flex justify-between items-center text-sm">
@@ -261,6 +268,72 @@
 
         </div>
 
+    </div>
+</div>
+
+<!-- Physiology Stage Detail Modal (Single Stage) -->
+<div id="stage-detail-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-700 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+            <h3 id="stage-detail-title" class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <!-- Dynamic Title -->
+            </h3>
+            <button onclick="closeStageDetailModal()" class="text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="space-y-3 text-xs leading-relaxed text-slate-300">
+            <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-700/80">
+                <span class="text-slate-400 block mb-1 font-semibold">血液酒精濃度範圍 (BAC)</span>
+                <span id="stage-detail-bac" class="font-mono text-sm font-bold text-amber-300"></span>
+            </div>
+
+            <div class="space-y-1">
+                <span class="font-semibold text-slate-200 block">典型生理症狀：</span>
+                <p id="stage-detail-symptoms" class="text-slate-300 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 leading-normal"></p>
+            </div>
+
+            <div class="space-y-1">
+                <span class="font-semibold text-slate-200 block">安全與醫療處置建議：</span>
+                <p id="stage-detail-advice" class="text-slate-300 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20 leading-normal"></p>
+            </div>
+        </div>
+
+        <div class="pt-2 flex gap-2">
+            <button onclick="closeStageDetailModal(); openStageModal();" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-amber-300 font-semibold border border-slate-700 transition">
+                查看全套 6 大分級對照
+            </button>
+            <button onclick="closeStageDetailModal()" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition">
+                關閉
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- All Physiology Stages Modal (Table Overview) -->
+<div id="stage-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-700 space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center border-b border-slate-700 pb-3 shrink-0">
+            <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <i class="fa-solid fa-hospital-user text-rose-400"></i> 全球醫學 BAC 生理反應 6 大分級
+            </h3>
+            <button onclick="closeStageModal()" class="text-slate-400 hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto space-y-3 pr-1 text-xs">
+            <div id="stages-list-container" class="space-y-2.5">
+                <!-- Dynamically Rendered 6 Stages Cards -->
+            </div>
+        </div>
+
+        <div class="pt-2 text-right shrink-0 border-t border-slate-700/60">
+            <button onclick="closeStageModal()" class="px-5 py-2.5 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition">
+                關閉
+            </button>
+        </div>
     </div>
 </div>
 
@@ -428,7 +501,7 @@
 /**
  * Application State
  */
-const STORAGE_KEY = 'bac_tracker_state_v3';
+const STORAGE_KEY = 'bac_tracker_state_v4';
 
 let state = {
     profile: {
@@ -437,7 +510,84 @@ let state = {
         age: 28,
         asianFlush: false
     },
-    items: [], // Array of drink or water items
+    items: [],
+};
+
+// Global active current stage key
+let currentStageKey = 'clear';
+
+// Medical Physiology Stages Master Data
+const PHYSIOLOGY_STAGES = {
+    clear: {
+        key: 'clear',
+        title: '完全清醒 (Sober)',
+        icon: 'fa-shield-halved',
+        bacRange: 'BAC < 0.03%',
+        tagClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        label: '完全清醒 (可駕車)',
+        symptoms: '肌肉協調良好，注意力正常，大腦反應敏捷，體內無剩餘酒精影響。',
+        advice: '狀態非常安全，可正常駕車與日常生活。'
+    },
+    euphoria: {
+        key: 'euphoria',
+        title: '微醺/輕度興奮期 (Euphoria)',
+        icon: 'fa-face-smile-beam',
+        bacRange: 'BAC 0.03% ~ 0.09%',
+        tagClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+        label: '微醺狀態 (切勿駕車)',
+        symptoms: '社交能力增強、情緒高漲放鬆、言語變多；但精細動作控制與微小注意力已出現輕微遲鈍。',
+        advice: '已達法定酒駕違規標準（台灣 BAC >= 0.03%），嚴禁駕駛任何車輛！建議開始補充溫開水。'
+    },
+    excitement: {
+        key: 'excitement',
+        title: '興奮/醉酒期 (Excitement)',
+        icon: 'fa-wine-glass',
+        bacRange: 'BAC 0.10% ~ 0.19%',
+        tagClass: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+        label: '醉酒狀態 (嚴禁駕車)',
+        symptoms: '步態不穩、言語不清楚、平衡感喪失、視力範圍變窄、判斷力顯著下降，容易情緒失控。',
+        advice: '請立刻停止飲酒！大量補充水分或電解質，並由清醒朋友協助叫車歸家。'
+    },
+    confusion: {
+        key: 'confusion',
+        title: '混亂/共濟失調期 (Confusion)',
+        icon: 'fa-user-ninja',
+        bacRange: 'BAC 0.20% ~ 0.29%',
+        tagClass: 'bg-red-500/20 text-red-300 border-red-500/30 animate-pulse',
+        label: '混亂失調 (極高風險)',
+        symptoms: '方向感與空間感喪失、記憶混亂（斷片）、噁心嘔吐、痛覺遲鈍，無法獨立正常行走。',
+        advice: '極高跌倒受傷與嘔吐窒息風險！旁人應密切照顧，勿讓其單獨行動。'
+    },
+    stupor: {
+        key: 'stupor',
+        title: '泥醉/昏迷前期 (Stupor)',
+        icon: 'fa-bed-pulse',
+        bacRange: 'BAC 0.30% ~ 0.39%',
+        tagClass: 'bg-rose-600/30 text-rose-200 border-rose-500/50 animate-pulse',
+        label: '泥醉危險區 (需人照護)',
+        symptoms: '昏睡、意識模糊或短暫喪失，對外部刺激反應極慢，體溫下降，失去嘔吐防衛反射。',
+        advice: '⚠️ 急性危險！隨時有嘔吐物吸入肺部窒息風險，應採【側臥姿勢】並隨時準備送醫。'
+    },
+    coma: {
+        key: 'coma',
+        title: '深度昏迷期 (Coma)',
+        icon: 'fa-skull-crossbones',
+        bacRange: 'BAC 0.40% ~ 0.49%',
+        tagClass: 'bg-purple-600/40 text-purple-200 border-purple-500/60 animate-pulse',
+        label: '深度昏迷 (生命危險)',
+        symptoms: '反射神經完全消失、無意識、瞳孔對光反應遲鈍、心跳血壓下降、呼吸微弱（每分鐘<8次）。',
+        advice: '🚨 致命極危！呼吸中樞隨時停止，請立刻撥打 119 送急診搶救！'
+    },
+    death: {
+        key: 'death',
+        title: '致命期 / 呼吸麻痺 (Death)',
+        icon: 'fa-skull',
+        bacRange: 'BAC ≥ 0.50%',
+        tagClass: 'bg-black/60 text-red-400 border-red-600 animate-bounce',
+        label: '致命極限 (立刻送醫)',
+        symptoms: '延腦呼吸中樞與心臟中樞被麻痺，心跳驟停，死亡率極高。',
+        advice: '☠️ 達人體生理毒性極限！請立即進行 CPR 並由醫護人員急救。'
+    }
 };
 
 // Preset Drinks Master Data
@@ -457,6 +607,7 @@ const PRESET_DRINKS = [
 window.onload = function() {
     loadState();
     renderPresets();
+    renderStageTableList();
     updateProfileUI();
     recalculateAll();
     
@@ -472,20 +623,6 @@ function loadState() {
         try {
             const parsed = JSON.parse(saved);
             state = { ...state, ...parsed };
-            if (parsed.drinks && !parsed.items) {
-                state.items = parsed.drinks.map(d => ({ ...d, type: 'drink' }));
-                if (parsed.waterIntake > 0) {
-                    state.items.push({
-                        id: 'water_legacy',
-                        type: 'water',
-                        name: '補充水分',
-                        volume: parsed.waterIntake,
-                        abv: 0,
-                        timestamp: new Date().toISOString(),
-                        alcoholGrams: 0
-                    });
-                }
-            }
         } catch (e) {
             console.error('Failed to parse stored state', e);
         }
@@ -496,9 +633,6 @@ function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-/**
- * Render Presets Card Grid (Centered stacked ml and abv lines)
- */
 function renderPresets() {
     const grid = document.getElementById('preset-drinks-grid');
     grid.innerHTML = PRESET_DRINKS.map(drink => `
@@ -647,21 +781,31 @@ function recalculateAll() {
     document.getElementById('bac-value').innerText = bacDisplay.toFixed(3);
     document.getElementById('bac-promille').innerText = `(${(bacDisplay * 10).toFixed(2)} ‰)`;
 
-    // Driving status tag
+    // Driving & Physiology Status Tag Evaluation
     const drivingTag = document.getElementById('driving-status-tag');
+    
     if (bacDisplay <= 0.0001) {
-        drivingTag.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-        drivingTag.innerText = '完全清醒 (可駕車)';
-    } else if (bacDisplay < 0.03) {
-        drivingTag.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
-        drivingTag.innerText = '微醺狀態 (切勿駕車)';
-    } else if (bacDisplay < 0.15) {
-        drivingTag.className = 'px-3 py-1 rounded-full text-xs font-bold bg-orange-500/20 text-orange-300 border border-orange-500/30';
-        drivingTag.innerText = '醉酒狀態 (嚴禁駕車)';
+        currentStageKey = 'clear';
+    } else if (bacDisplay < 0.10) {
+        currentStageKey = 'euphoria';
+    } else if (bacDisplay < 0.20) {
+        currentStageKey = 'excitement';
+    } else if (bacDisplay < 0.30) {
+        currentStageKey = 'confusion';
+    } else if (bacDisplay < 0.40) {
+        currentStageKey = 'stupor';
+    } else if (bacDisplay < 0.50) {
+        currentStageKey = 'coma';
     } else {
-        drivingTag.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-300 border border-red-500/30 animate-pulse';
-        drivingTag.innerText = '泥醉危險區 (請勿駕駛)';
+        currentStageKey = 'death';
     }
+
+    const stageObj = PHYSIOLOGY_STAGES[currentStageKey];
+    drivingTag.className = `px-3 py-1 rounded-full text-xs font-bold border transition flex items-center gap-1 cursor-pointer hover:brightness-125 ${stageObj.tagClass}`;
+    drivingTag.innerHTML = `
+        <span>${stageObj.label}</span>
+        <i class="fa-solid fa-circle-info text-[10px] opacity-70"></i>
+    `;
 
     // Countdown Timer calculation
     const hoursToSober = bacDisplay / hourlyRate;
@@ -703,6 +847,66 @@ function recalculateAll() {
 
     // Update History List UI
     renderHistory();
+}
+
+/**
+ * Show Single Stage Detail Modal
+ */
+function showStageDetail(stageKey) {
+    const stage = PHYSIOLOGY_STAGES[stageKey] || PHYSIOLOGY_STAGES.clear;
+    
+    document.getElementById('stage-detail-title').innerHTML = `
+        <i class="fa-solid ${stage.icon} text-amber-400"></i> ${stage.title}
+    `;
+    document.getElementById('stage-detail-bac').innerText = stage.bacRange;
+    document.getElementById('stage-detail-symptoms').innerText = stage.symptoms;
+    document.getElementById('stage-detail-advice').innerText = stage.advice;
+
+    document.getElementById('stage-detail-modal').classList.remove('hidden');
+}
+
+function showCurrentStageDetail() {
+    showStageDetail(currentStageKey);
+}
+
+function closeStageDetailModal() {
+    document.getElementById('stage-detail-modal').classList.add('hidden');
+}
+
+/**
+ * Render and Control 6-Stage Table Modal
+ */
+function openStageModal() {
+    document.getElementById('stage-modal').classList.remove('hidden');
+}
+
+function closeStageModal() {
+    document.getElementById('stage-modal').classList.add('hidden');
+}
+
+function renderStageTableList() {
+    const container = document.getElementById('stages-list-container');
+    const stageKeys = ['clear', 'euphoria', 'excitement', 'confusion', 'stupor', 'coma', 'death'];
+
+    container.innerHTML = stageKeys.map(key => {
+        const item = PHYSIOLOGY_STAGES[key];
+        const isCurrent = key === currentStageKey;
+        const currentHighlight = isCurrent ? 'ring-2 ring-amber-400 bg-amber-500/10' : 'bg-slate-900/60 border-slate-700/60';
+
+        return `
+            <div onclick="closeStageModal(); showStageDetail('${key}');" class="glass-card rounded-xl p-3 border cursor-pointer hover:border-amber-400/60 transition ${currentHighlight}">
+                <div class="flex justify-between items-center mb-1">
+                    <div class="font-bold text-slate-100 flex items-center gap-2 text-xs">
+                        <i class="fa-solid ${item.icon} text-amber-400"></i>
+                        <span>${item.title}</span>
+                        ${isCurrent ? '<span class="text-[10px] bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded font-bold">當前狀態</span>' : ''}
+                    </div>
+                    <span class="font-mono text-[11px] font-bold text-amber-300/90">${item.bacRange}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">${item.symptoms}</p>
+            </div>
+        `;
+    }).join('');
 }
 
 function evaluateHangover(totalGrams, waterIntake, targetWater) {
